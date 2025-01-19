@@ -5,6 +5,7 @@ namespace Brickhouse\Core;
 use Brickhouse\Container\Container;
 use Brickhouse\Core\Console\Commands;
 use Brickhouse\Core\Events;
+use Brickhouse\Http\HttpKernel;
 use Composer\Autoload\ClassLoader;
 
 class Application extends Container
@@ -74,7 +75,7 @@ class Application extends Container
      *
      * @param   string                              $basePath
      */
-    public function __construct(string $basePath)
+    public final function __construct(string $basePath)
     {
         /**
          * @var Application $app
@@ -89,6 +90,15 @@ class Application extends Container
 
         $this->bootstrap($basePath);
         $this->boot();
+    }
+
+    /**
+     * Deconstruct the application and reset global state.
+     */
+    public final function __destruct()
+    {
+        self::$container = null;
+        self::$instance = null;
     }
 
     /**
@@ -208,17 +218,17 @@ class Application extends Container
     }
 
     /**
-     * Creates a builder for configuring the application.
+     * Creates a new `Application` instance.
      *
      * @param string|null   $basePath       Optional base path for all runtime path resolving.
      *
-     * @return ApplicationBuilder
+     * @return static
      */
-    public static function configure(?string $basePath = null): ApplicationBuilder
+    public static function create(?string $basePath = null): static
     {
         $basePath ??= self::inferBasePath();
 
-        return new ApplicationBuilder($basePath);
+        return new static($basePath);
     }
 
     /**
@@ -232,5 +242,15 @@ class Application extends Container
             isset($_ENV['APP_BASE_PATH']) => $_ENV['APP_BASE_PATH'],
             default => dirname(array_keys(ClassLoader::getRegisteredLoaders())[0]),
         };
+    }
+
+    /**
+     * Reads the current request from superglobals, routes it's to the correct action, and sends the response back to the client.
+     *
+     * @return int
+     */
+    public function handleRequest(): int
+    {
+        return $this->kernel(HttpKernel::class);
     }
 }
